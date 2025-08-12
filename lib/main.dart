@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'app/routes.dart';
-import './app/features/controllers/bloc/controllers_bloc.dart';
-import './app/features/gcode_diff/bloc/gcode_diff_bloc.dart';
+import 'presentation/routes/app_routes.dart';
+import 'presentation/features/controller_selection/bloc/controller_selection_bloc.dart';
+import 'package:test_gcode/presentation/features/gcode_diff/bloc/gcode_diff_bloc.dart';
+import 'package:test_gcode/presentation/features/gcode_diff/bloc/gcode_diff_state.dart';
+import './domain/usecases/compare_gcode_usecase.dart';
+import './domain/usecases/get_gcode_versions_usecase.dart';
+import './domain/usecases/save_reference_usecase.dart';
+import './data/repositories/gcode_repository_impl.dart';
 import './core/services/gcode_service.dart';
 
 void main() {
@@ -17,10 +22,18 @@ class MyApp extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (context) => ControllersBloc()..add(LoadControllers()),
+          create: (context) => ControllerSelectionBloc(),
         ),
         BlocProvider(
-          create: (context) => GCodeDiffBloc(gCodeService: GCodeService()),
+          create: (context) {
+            final repository = GCodeRepositoryImpl(GCodeService());
+            return GCodeDiffBloc(
+              compareGCode: CompareGCodeUseCase(repository),
+              getVersions: GetGCodeVersionsUseCase(repository),
+              saveReference: SaveReferenceUseCase(repository),
+              gcodeRepository: repository,
+            );
+          },
         ),
       ],
       child: MaterialApp(
@@ -30,11 +43,11 @@ class MyApp extends StatelessWidget {
           visualDensity: VisualDensity.adaptivePlatformDensity,
         ),
         onGenerateRoute: AppRoutes.generateRoute,
-        initialRoute: AppRoutes.controllers,
+        initialRoute: AppRoutes.controllerSelection,
         builder: (context, child) {
           return BlocListener<GCodeDiffBloc, GCodeDiffState>(
             listener: (context, state) {
-              if (state is GCodeDiffLoaded && state.changes.isNotEmpty) {
+              if (state is GCodeDiffLoaded && state.diff.changes.isNotEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('Обнаружены изменения в G-коде станка ${state.controllerId}'),
