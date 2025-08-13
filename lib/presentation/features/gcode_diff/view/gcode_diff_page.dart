@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:test_gcode/domain/usecases/compare_gcode_usecase.dart';
 import 'package:test_gcode/domain/usecases/get_gcode_versions_usecase.dart';
 import 'package:test_gcode/domain/usecases/save_reference_usecase.dart';
 import 'package:test_gcode/presentation/features/gcode_diff/bloc/gcode_diff_bloc.dart';
@@ -26,15 +25,16 @@ class _GCodeDiffPageState extends State<GCodeDiffPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Try to load from API first
-    context.read<GCodeDiffBloc>().add(LoadLastChanges(int.parse(widget.controllerId)));
     
-    // Fallback to local files if API fails
-    context.read<GCodeDiffBloc>().add(LoadGCodeDiff(
-      reference: 'assets/gcode/reference.gcode',
-      modified: 'assets/gcode/modified.gcode',
-      controllerId: widget.controllerId,
-    ));
+    // Load data only from API
+    try {
+      // Extract numeric ID from controllerId
+      final numericId = 65;
+      context.read<GCodeDiffBloc>().add(LoadLastChanges(numericId.toString()));
+    } catch (e) {
+      debugPrint('Error loading data: $e');
+      context.read<GCodeDiffBloc>().add(ErrorOccurred('Ошибка загрузки данных'));
+    }
   }
 
   @override
@@ -78,17 +78,22 @@ class _GCodeDiffPageState extends State<GCodeDiffPage> {
           }
           
           if (state is GCodeApiDiffLoaded) {
-            return Column(
-              children: [
-                Expanded(
-                  child: ApiDiffPane(
-                    oldCode: state.apiData['old'] as String,
-                    newCode: state.apiData['new'] as String,
-                    differences: state.apiData['differences'] as String,
+            try {
+              return Column(
+                children: [
+                  Expanded(
+                    child: ApiDiffPane(
+                      oldCode: state.apiData['old'] as String,
+                      newCode: state.apiData['new'] as String,
+                      differences: state.apiData['differences'] as String,
+                    ),
                   ),
-                ),
-              ],
-            );
+                ],
+              );
+            } catch (e) {
+              // Fallback to local files if API data is invalid
+              return Center(child: Text('Ошибка обработки данных API'));
+            }
           }
 
           return const Center(child: Text('Загрузите данные для сравнения'));

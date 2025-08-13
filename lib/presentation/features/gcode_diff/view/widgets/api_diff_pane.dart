@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:test_gcode/core/utils/gcode_highlighter.dart';
+import 'package:test_gcode/core/utils/ansi_parser.dart';
+import 'package:test_gcode/presentation/features/gcode_diff/view/widgets/diff_viewer.dart';
 
+/// Виджет для отображения сравнения G-кода из API
+/// Показывает две панели: оригинальный и измененный код с подсветкой различий
 class ApiDiffPane extends StatelessWidget {
   final String oldCode;
   final String newCode;
@@ -15,100 +18,41 @@ class ApiDiffPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final oldLines = oldCode.split('\n');
-    final newLines = newCode.split('\n');
-
     return Row(
       children: [
-        // Left pane - Old version
         Expanded(
           child: Column(
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                color: Colors.grey[100],
-                child: const Text(
-                  'OLD VERSION',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
+              Text('Original Code', style: Theme.of(context).textTheme.titleMedium),
               Expanded(
-                child: ListView.builder(
-                  itemCount: oldLines.length,
-                  itemBuilder: (context, index) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      height: 20,
-                      child: Row(
-                        children: [
-                          SizedBox(
-                            width: 40,
-                            child: Text(
-                              '${index + 1}',
-                              style: const TextStyle(color: Colors.grey),
-                            ),
-                          ),
-                          Expanded(
-                            child: SelectableText.rich(
-                              TextSpan(
-                                children: GCodeHighlighter.highlight(oldLines[index]),
-                              ),
-                              style: const TextStyle(fontFamily: 'monospace'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+                child: SingleChildScrollView(
+                  child: Text(oldCode),
                 ),
               ),
             ],
           ),
         ),
-
-        // Divider
-        Container(width: 1, color: Colors.grey[300]),
-
-        // Right pane - New version
+        VerticalDivider(width: 1),
         Expanded(
           child: Column(
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                color: Colors.grey[100],
-                child: const Text(
-                  'NEW VERSION',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+              Text('Modified Code', style: Theme.of(context).textTheme.titleMedium),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Text(newCode),
                 ),
               ),
+            ],
+          ),
+        ),
+        VerticalDivider(width: 1),
+        Expanded(
+          child: Column(
+            children: [
+              Text('Differences', style: Theme.of(context).textTheme.titleMedium),
               Expanded(
-                child: ListView.builder(
-                  itemCount: newLines.length,
-                  itemBuilder: (context, index) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      height: 20,
-                      child: Row(
-                        children: [
-                          SizedBox(
-                            width: 40,
-                            child: Text(
-                              '${index + 1}',
-                              style: const TextStyle(color: Colors.grey),
-                            ),
-                          ),
-                          Expanded(
-                            child: SelectableText.rich(
-                              TextSpan(
-                                children: GCodeHighlighter.highlight(newLines[index]),
-                              ),
-                              style: const TextStyle(fontFamily: 'monospace'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+                child: DiffViewer(
+                  diffLines: AnsiDiffParser.parseDiff(differences),
                 ),
               ),
             ],

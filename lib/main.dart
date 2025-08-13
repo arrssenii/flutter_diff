@@ -4,7 +4,6 @@ import 'presentation/routes/app_routes.dart';
 import 'presentation/features/controller_selection/bloc/controller_selection_bloc.dart';
 import 'package:test_gcode/presentation/features/gcode_diff/bloc/gcode_diff_bloc.dart';
 import 'package:test_gcode/presentation/features/gcode_diff/bloc/gcode_diff_state.dart';
-import './domain/usecases/compare_gcode_usecase.dart';
 import './domain/usecases/get_gcode_versions_usecase.dart';
 import './domain/usecases/save_reference_usecase.dart';
 import './data/repositories/gcode_repository_impl.dart';
@@ -28,7 +27,6 @@ class MyApp extends StatelessWidget {
           create: (context) {
             final repository = GCodeRepositoryImpl(GCodeService());
             return GCodeDiffBloc(
-              compareGCode: CompareGCodeUseCase(repository),
               getVersions: GetGCodeVersionsUseCase(repository),
               saveReference: SaveReferenceUseCase(repository),
               gcodeRepository: repository,

@@ -25,7 +25,7 @@ class LoadGCodeDiff extends GCodeDiffEvent {
 }
 
 class LoadLastChanges extends GCodeDiffEvent {
-  final int bsid;
+  final String bsid;
 
   const LoadLastChanges(this.bsid);
 
@@ -73,4 +73,13 @@ class SelectHistoricalVersion extends GCodeDiffEvent {
 
   @override
   List<Object> get props => [version];
+}
+
+class ErrorOccurred extends GCodeDiffEvent {
+  final String message;
+
+  const ErrorOccurred(this.message);
+
+  @override
+  List<Object> get props => [message];
 }

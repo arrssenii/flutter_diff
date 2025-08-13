@@ -6,9 +6,7 @@
 import 'dart:async' as _i3;
 
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i4;
 import 'package:test_gcode/core/services/gcode_service.dart' as _i2;
-import 'package:test_gcode/domain/entities/gcode_version.dart' as _i5;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -33,108 +31,13 @@ class MockGCodeService extends _i1.Mock implements _i2.GCodeService {
   }
 
   @override
-  _i3.Future<int> getFileSize(String? filename) => (super.noSuchMethod(
-        Invocation.method(
-          #getFileSize,
-          [filename],
-        ),
-        returnValue: _i3.Future<int>.value(0),
-      ) as _i3.Future<int>);
-
-  @override
-  _i3.Future<String> getReferenceGCode(String? controllerId) =>
+  _i3.Future<Map<String, dynamic>> getLastChangesFromAPI(String? bsid) =>
       (super.noSuchMethod(
         Invocation.method(
-          #getReferenceGCode,
-          [controllerId],
-        ),
-        returnValue: _i3.Future<String>.value(_i4.dummyValue<String>(
-          this,
-          Invocation.method(
-            #getReferenceGCode,
-            [controllerId],
-          ),
-        )),
-      ) as _i3.Future<String>);
-
-  @override
-  _i3.Future<String> getModifiedGCode(String? controllerId) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #getModifiedGCode,
-          [controllerId],
-        ),
-        returnValue: _i3.Future<String>.value(_i4.dummyValue<String>(
-          this,
-          Invocation.method(
-            #getModifiedGCode,
-            [controllerId],
-          ),
-        )),
-      ) as _i3.Future<String>);
-
-  @override
-  _i3.Stream<String> getReferenceGCodeChunked(String? controllerId) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #getReferenceGCodeChunked,
-          [controllerId],
-        ),
-        returnValue: _i3.Stream<String>.empty(),
-      ) as _i3.Stream<String>);
-
-  @override
-  _i3.Stream<String> getModifiedGCodeChunked(String? controllerId) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #getModifiedGCodeChunked,
-          [controllerId],
-        ),
-        returnValue: _i3.Stream<String>.empty(),
-      ) as _i3.Stream<String>);
-
-  @override
-  _i3.Future<List<_i5.GCodeVersion>> getHistoricalVersions(
-          String? controllerId) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #getHistoricalVersions,
-          [controllerId],
+          #getLastChangesFromAPI,
+          [bsid],
         ),
         returnValue:
-            _i3.Future<List<_i5.GCodeVersion>>.value(<_i5.GCodeVersion>[]),
-      ) as _i3.Future<List<_i5.GCodeVersion>>);
-
-  @override
-  _i3.Future<void> saveAsReference(
-    String? controllerId,
-    String? code,
-  ) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #saveAsReference,
-          [
-            controllerId,
-            code,
-          ],
-        ),
-        returnValue: _i3.Future<void>.value(),
-        returnValueForMissingStub: _i3.Future<void>.value(),
-      ) as _i3.Future<void>);
-
-  @override
-  _i3.Future<String> getVersionContent(String? versionId) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #getVersionContent,
-          [versionId],
-        ),
-        returnValue: _i3.Future<String>.value(_i4.dummyValue<String>(
-          this,
-          Invocation.method(
-            #getVersionContent,
-            [versionId],
-          ),
-        )),
-      ) as _i3.Future<String>);
+            _i3.Future<Map<String, dynamic>>.value(<String, dynamic>{}),
+      ) as _i3.Future<Map<String, dynamic>>);
 }

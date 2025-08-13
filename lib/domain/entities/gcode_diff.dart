@@ -16,10 +16,10 @@ class GCodeDiff extends Equatable {
     required this.modified,
     required this.differences,
     required this.changes,
-    required this.originalLines,
-    required this.modifiedLines,
-    required this.originalDiffLines,
-    required this.modifiedDiffLines,
+    this.originalLines = const [],
+    this.modifiedLines = const [],
+    this.originalDiffLines = const [],
+    this.modifiedDiffLines = const [],
     required this.diffIndices,
   });
 

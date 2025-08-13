@@ -17,72 +17,45 @@ void main() {
     repository = repo.GCodeRepositoryImpl(mockService);
   });
 
-  group('GCodeRepositoryImpl', () {
-    test('should compare small files successfully', () async {
-      when(mockService.getFileSize('ref')).thenAnswer((_) async => 1024);
-      when(mockService.getFileSize('mod')).thenAnswer((_) async => 2048);
-      when(mockService.getReferenceGCode('ref')).thenAnswer((_) async => 'G1 X10');
-      when(mockService.getModifiedGCode('mod')).thenAnswer((_) async => 'G1 X20');
+  group('GCodeRepositoryImpl API tests', () {
+    test('should return valid diff from API', () async {
+      const testData = {
+        'old': 'G1 X10\nG1 Y20',
+        'new': 'G1 X15\nG1 Y20',
+        'differences': 'modified line 1'
+      };
 
-      final result = await repository.compareGCode(
-        reference: 'ref',
-        modified: 'mod',
-      );
+      when(mockService.getLastChangesFromAPI('65'))
+        .thenAnswer((_) async => testData);
 
-      expect(result, isA<domain.GCodeDiff>());
-      expect(result.changes, isNotEmpty);
-      verify(mockService.getFileSize('ref')).called(1);
-      verify(mockService.getFileSize('mod')).called(1);
+      final result = await repository.getLastChanges('65');
+
+      expect(result['old'], testData['old']);
+      expect(result['new'], testData['new']);
+      expect(result['diffResult'], isA<domain.GCodeDiff>());
+      verify(mockService.getLastChangesFromAPI('65')).called(1);
     });
 
-    test('should throw when file exceeds size limit', () async {
-      when(mockService.getFileSize('large'))
-          .thenAnswer((_) async => repo.GCodeRepositoryImpl.maxFileSizeBytes + 1);
+    test('should throw on API timeout', () async {
+      when(mockService.getLastChangesFromAPI('65'))
+        .thenAnswer((_) => Future.delayed(
+          const Duration(seconds: 31),
+          () => {}
+        ));
 
       expect(
-        () => repository.compareGCode(reference: 'large', modified: 'large'),
+        () => repository.getLastChanges('65'),
         throwsA(isA<Exception>()),
       );
     });
 
-    test('should process chunks correctly', () async {
-      when(mockService.getFileSize('ref')).thenAnswer((_) async => 1024);
-      when(mockService.getFileSize('mod')).thenAnswer((_) async => 1024);
-      when(mockService.getReferenceGCodeChunked('ref'))
-          .thenAnswer((_) => Stream.fromIterable(['G1 X10\n']));
-      when(mockService.getModifiedGCodeChunked('mod'))
-          .thenAnswer((_) => Stream.fromIterable(['G1 X20\n']));
+    test('should handle API errors', () async {
+      when(mockService.getLastChangesFromAPI('65'))
+        .thenThrow(Exception('API error'));
 
-      final stream = repository.compareGCodeChunked(
-        reference: 'ref',
-        modified: 'mod',
-      );
-
-      await expectLater(
-        stream,
-        emits(predicate<domain.GCodeDiff>((diff) => diff.changes.isNotEmpty))
-      );
-    });
-
-    test('should work with asset files', () async {
-      // Arrange
-      final realService = GCodeService();
-      final testRepo = repo.GCodeRepositoryImpl(realService);
-      
-      // Act & Assert
-      await expectLater(
-        realService.getFileSize('reference.gcode'),
-        completion(isA<int>()),
-      );
-      
-      await expectLater(
-        realService.getReferenceGCode(''),
-        completion(isA<String>()),
-      );
-      
-      await expectLater(
-        realService.getReferenceGCodeChunked(''),
-        emits(isA<String>()),
+      expect(
+        () => repository.getLastChanges('65'),
+        throwsA(isA<Exception>()),
       );
     });
   });
