@@ -1,37 +1,41 @@
 import 'package:flutter/material.dart';
+import 'package:test_gcode/core/utils/diff_types.dart';
 
-class GCodeHighlighter extends StatelessWidget {
-  final String text;
-  final TextStyle baseStyle;
-  final bool preserveWhitespace;
-  
-  const GCodeHighlighter({
-    super.key, 
-    required this.text,
-    this.preserveWhitespace = true,
-    this.baseStyle = const TextStyle(
-      fontFamily: 'RobotoMono',
-      fontSize: 12,
-      height: 1.5,
-      color: Colors.black,
-    ),
-  });
+class GCodeHighlighter {
+  static const TextStyle baseStyle = TextStyle(
+    fontFamily: 'RobotoMono',
+    fontSize: 12,
+    height: 1.5,
+    color: Colors.black,
+  );
 
-  @override
-  Widget build(BuildContext context) {
-    return Text.rich(
-      TextSpan(
-        children: _highlightGCode(text),
-        style: baseStyle.copyWith(
-          leadingDistribution: TextLeadingDistribution.even,
+  static List<TextSpan> highlight(String code, {DiffType? diffType}) {
+    final spans = _highlightGCode(code);
+    
+    if (diffType != null) {
+      // Apply diff highlighting
+      final color = diffType == DiffType.added
+          ? Colors.green[700]!
+          : diffType == DiffType.removed
+              ? Colors.red[700]!
+              : Colors.orange[700]!;
+      
+      return [
+        TextSpan(
+          children: spans,
+          style: baseStyle.copyWith(
+            backgroundColor: color.withOpacity(0.15),
+            color: color,
+            fontWeight: FontWeight.w500,
+          ),
         ),
-      ),
-      textAlign: TextAlign.left,
-      softWrap: false,
-    );
+      ];
+    }
+    
+    return spans;
   }
 
-  List<TextSpan> _highlightGCode(String code) {
+  static List<TextSpan> _highlightGCode(String code) {
     final spans = <TextSpan>[];
     int currentPos = 0;
     

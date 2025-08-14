@@ -1,66 +1,82 @@
 import 'dart:convert';
-import 'package:flutter/services.dart' show rootBundle;
-import '../../app/features/gcode_diff/models/gcode_version.dart';
+import 'package:flutter/foundation.dart';
+import 'package:dio/dio.dart';
 
 class GCodeService {
-  static const String basePath = 'assets/gcode/';
-
-  Future<String> getReferenceGCode(String controllerId) async {
-    return await _loadGCode('reference.gcode');
-  }
-
-  Future<String> getModifiedGCode(String controllerId) async {
-    return await _loadGCode('modified.gcode');
-  }
-
-  Future<List<GCodeVersion>> getHistoricalVersions(String controllerId) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    return [
-      GCodeVersion(
-        id: 'v1',
-        name: 'Версия 1.0',
-        timestamp: DateTime(2023, 5, 10),
-      ),
-      GCodeVersion(
-        id: 'v2',
-        name: 'Версия 1.1',
-        timestamp: DateTime(2023, 6, 15),
-      ),
-      GCodeVersion(
-        id: 'current',
-        name: 'Текущая',
-        timestamp: DateTime(2023, 7, 20),
-      ),
-    ];
-  }
-
-  Future<void> saveAsReference(String controllerId, String code) async {
-    await Future.delayed(const Duration(seconds: 1));
-    print('Сохранено как эталон для $controllerId');
-  }
-
-  Future<String> getVersionContent(String versionId) async {
-    switch (versionId) {
-      case 'v1':
-        return await _loadGCode('v1.gcode');
-      case 'v2':
-        return await _loadGCode('v2.gcode');
-      case 'current':
-        return await getModifiedGCode('');
-      default:
-        return await getReferenceGCode('');
-    }
-  }
-
-  Future<String> _loadGCode(String filename) async {
+  String? _cleanCncData(dynamic input) {
+    if (input == null) return null;
+    
+    String text = input is String ? input : input.toString();
+    text = text.replaceAll(RegExp(r'%[^%]*%'), '');
+    text = text.replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '');
+    
     try {
-      final content = await rootBundle.loadString('$basePath$filename');
-      if (content.isEmpty) {
-        throw Exception('Файл $filename пустой');
-      }
-      return content;
+      utf8.decode(utf8.encode(text));
     } catch (e) {
-      throw Exception('Не удалось загрузить файл $filename: $e');
+      throw FormatException('Invalid UTF-8 encoding');
+    }
+    
+    return text.trim();
+  }
+
+  Future<Map<String, dynamic>> getLastChangesFromAPI(String bsid) async {
+    try {
+      final dio = Dio(BaseOptions(
+        baseUrl: 'http://192.168.29.137:5000',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTUxNjg5MDgsImxvZ2luIjoiYWRtaW4iLCJ1c2VyX2lkIjoxfQ.ZS4mv1ZiMyYEpnt5AMT2Qu-Jmv-u0fjJFCSFBC6-Lps',
+        },
+        contentType: 'application/json',
+        followRedirects: false,
+        validateStatus: (status) => status! < 500,
+      ));
+
+      final numericBsid = 65;
+      final response = await dio.get(
+        '/api/v1/program/changes/last',
+        queryParameters: {'bsid': numericBsid},
+      );
+
+      debugPrint('Raw API response: ${response.data}');
+      
+      if (response.statusCode == 200) {
+        final json = response.data as Map<String, dynamic>;
+        if (json['status'] == 'ok') {
+          final data = json['response']['data'] as Map<String, dynamic>;
+          
+          if (kDebugMode) {
+            debugPrint('Original API data: ${data.toString()}');
+          }
+          final cleanedData = {
+            'old': data['old']?.toString() ?? '',
+            'new': data['new']?.toString() ?? '',
+            'differences': data['differences']?.toString() ?? '',
+          };
+          
+          if (cleanedData.values.any((v) => v == null)) {
+            throw Exception('Invalid API response format');
+          }
+          
+          if (kDebugMode) {
+            debugPrint('Cleaned data: ${cleanedData.toString()}');
+          }
+          return cleanedData;
+        }
+        throw Exception('API error: ${json['message']}');
+      }
+      throw Exception('HTTP error ${response.statusCode}');
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        throw Exception('Ошибка авторизации. Токен недействителен или отсутствует.');
+      } else if (e.type == DioExceptionType.connectionError) {
+        throw Exception('Ошибка соединения с сервером. Проверьте подключение к сети.');
+      } else if (e.type == DioExceptionType.connectionTimeout) {
+        throw Exception('Таймаут соединения. Сервер не отвечает.');
+      } else if (e.response?.statusCode == 403 || e.message?.contains('CORS') == true) {
+        throw Exception('Ошибка CORS. Сервер не разрешает запросы с этого домена.');
+      }
+      throw Exception('Ошибка сети: ${e.message}');
     }
   }
 }
