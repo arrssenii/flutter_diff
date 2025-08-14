@@ -64,9 +64,6 @@ class _ApiDiffPaneState extends State<ApiDiffPane> {
   final _newLineCache = <int, TextSpan>{};
 
   @override
-  @override
-  @override
-  @override
   Widget build(BuildContext context) {
     return Row(
       children: [
