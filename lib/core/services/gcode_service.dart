@@ -25,7 +25,7 @@ class GCodeService {
         baseUrl: 'http://192.168.29.137:5000',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTUxNjg5MDgsImxvZ2luIjoiYWRtaW4iLCJ1c2VyX2lkIjoxfQ.ZS4mv1ZiMyYEpnt5AMT2Qu-Jmv-u0fjJFCSFBC6-Lps',
+          'Authorization': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTUyNTgwNDUsImxvZ2luIjoiYWRtaW4iLCJ1c2VyX2lkIjoxfQ.T-Ji0-VvGz5nQw8Jej1v396qPBQ1L2c7VjUMk5H4GwQ',
         },
         contentType: 'application/json',
         followRedirects: false,
@@ -38,7 +38,7 @@ class GCodeService {
         queryParameters: {'bsid': numericBsid},
       );
 
-      debugPrint('Raw API response: ${response.data}');
+      
       
       if (response.statusCode == 200) {
         final json = response.data as Map<String, dynamic>;
@@ -46,7 +46,7 @@ class GCodeService {
           final data = json['response']['data'] as Map<String, dynamic>;
           
           if (kDebugMode) {
-            debugPrint('Original API data: ${data.toString()}');
+            
           }
           final cleanedData = {
             'old': data['old']?.toString() ?? '',
@@ -59,7 +59,7 @@ class GCodeService {
           }
           
           if (kDebugMode) {
-            debugPrint('Cleaned data: ${cleanedData.toString()}');
+            
           }
           return cleanedData;
         }

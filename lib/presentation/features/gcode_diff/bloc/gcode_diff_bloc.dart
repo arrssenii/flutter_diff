@@ -59,7 +59,6 @@ class GCodeDiffBloc extends Bloc<GCodeDiffEvent, GCodeDiffState> {
       if (kDebugMode) {
         debugPrint('Diff hasChanges: ${diffData['hasChanges']}');
         debugPrint('Diff length: ${(diffData['differences'] as String).length}');
-        debugPrint('First 100 chars of diff: ${(diffData['differences'] as String).substring(0, 100)}');
       }
 
       emit(GCodeApiDiffLoaded(

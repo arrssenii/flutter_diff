@@ -41,13 +41,19 @@ class GCodeHighlighter {
     
     final gCommand = RegExp(r'\bG\d+\b');
     final mCommand = RegExp(r'\bM\d+\b');
-    final parameter = RegExp(r'\b[XYZEFS]-?\d+\.?\d*\b');
+    final tCommand = RegExp(r'\bT\d+\b');
+    final fCommand = RegExp(r'\bF\d+\b');
+    final parameter = RegExp(r'\b[XYZIJK]-?\d+\.?\d*\b');
+    final cycleParam = RegExp(r'\b[QLR]\d+\b');
     final comment = RegExp(r';.*|\(.*\)');
     
     final matches = [
       ...gCommand.allMatches(code),
       ...mCommand.allMatches(code),
+      ...tCommand.allMatches(code),
+      ...fCommand.allMatches(code),
       ...parameter.allMatches(code),
+      ...cycleParam.allMatches(code),
       ...comment.allMatches(code),
     ]..sort((a, b) => a.start.compareTo(b.start));
 
@@ -67,10 +73,25 @@ class GCodeHighlighter {
           text: text,
           style: baseStyle.copyWith(color: Colors.purple, fontWeight: FontWeight.bold),
         ));
+      } else if (tCommand.hasMatch(text)) {
+        spans.add(TextSpan(
+          text: text,
+          style: baseStyle.copyWith(color: Colors.orange, fontWeight: FontWeight.bold),
+        ));
+      } else if (fCommand.hasMatch(text)) {
+        spans.add(TextSpan(
+          text: text,
+          style: baseStyle.copyWith(color: Colors.teal, fontWeight: FontWeight.bold),
+        ));
       } else if (parameter.hasMatch(text)) {
         spans.add(TextSpan(
           text: text,
           style: baseStyle.copyWith(color: Colors.redAccent),
+        ));
+      } else if (cycleParam.hasMatch(text)) {
+        spans.add(TextSpan(
+          text: text,
+          style: baseStyle.copyWith(color: Colors.pink),
         ));
       } else if (comment.hasMatch(text)) {
         spans.add(TextSpan(

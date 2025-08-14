@@ -4,8 +4,13 @@ import 'package:test_gcode/core/utils/ansi_parser.dart';
 
 class DiffViewer extends StatelessWidget {
   final List<DiffLine> diffLines;
+  final ScrollController? scrollController;
 
-  const DiffViewer({super.key, required this.diffLines});
+  const DiffViewer({
+    super.key,
+    required this.diffLines,
+    this.scrollController,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -16,6 +21,7 @@ class DiffViewer extends StatelessWidget {
       debugPrint('Modified: ${diffLines.where((l) => l.type == DiffType.modified).length}');
     }
     return ListView.builder(
+      controller: scrollController,
       itemCount: diffLines.length,
       itemBuilder: (context, index) {
         final line = diffLines[index];
@@ -29,7 +35,7 @@ class DiffViewer extends StatelessWidget {
         }
 
         return Container(
-          padding: const EdgeInsets.all(4),
+          height: 20.0,
           color: backgroundColor,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -38,11 +44,14 @@ class DiffViewer extends StatelessWidget {
                 width: 40,
                 child: Text(
                   '${index + 1}',
-                  style: const TextStyle(color: Colors.grey),
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    height: 1.0,
+                  ),
                 ),
               ),
               Expanded(
-                child: Text(
+                child: SelectableText(
                   line.text,
                   style: TextStyle(
                     color: line.type == DiffType.removed
@@ -50,6 +59,7 @@ class DiffViewer extends StatelessWidget {
                       : line.type == DiffType.modified
                         ? Colors.orange
                         : Colors.black,
+                    height: 1.0,
                   ),
                 ),
               ),
