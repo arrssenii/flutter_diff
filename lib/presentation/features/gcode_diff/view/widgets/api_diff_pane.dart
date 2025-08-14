@@ -43,19 +43,31 @@ class _ApiDiffPaneState extends State<ApiDiffPane> {
 
   void _syncScroll(ScrollController source) {
     if (!source.hasClients) return;
-    
-    final offset = source.offset;
-    
-    // Синхронизируем другие панели
-    if (source == _originalScrollController &&
-        _modifiedScrollController.hasClients &&
-        _modifiedScrollController.offset != offset) {
-      _modifiedScrollController.jumpTo(offset);
+
+    // Рассчитываем номер текущей строки
+    final lineHeight = 20.0;
+    final currentLine = (source.offset / lineHeight).round();
+
+    // Синхронизация между оригиналом и изменениями
+    if (source == _originalScrollController || source == _modifiedScrollController) {
+      final targetController = source == _originalScrollController
+          ? _modifiedScrollController
+          : _originalScrollController;
+
+      if (targetController.hasClients) {
+        final targetOffset = currentLine * lineHeight;
+        if ((targetController.offset - targetOffset).abs() > 1) {
+          targetController.jumpTo(targetOffset.clamp(0, targetController.position.maxScrollExtent));
+        }
+      }
     }
-    
-    if (_diffScrollController.hasClients &&
-        _diffScrollController.offset != offset) {
-      _diffScrollController.jumpTo(offset);
+
+    // Синхронизация с панелью различий
+    if (_diffScrollController.hasClients) {
+      final diffOffset = currentLine * lineHeight;
+      if ((_diffScrollController.offset - diffOffset).abs() > 1) {
+        _diffScrollController.jumpTo(diffOffset.clamp(0, _diffScrollController.position.maxScrollExtent));
+      }
     }
   }
   late final List<String> oldLines = widget.oldCode.split('\n');
