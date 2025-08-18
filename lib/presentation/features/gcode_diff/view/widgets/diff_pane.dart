@@ -34,15 +34,27 @@ class DiffPane extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final line = diff.originalLines[index];
                     final isDiff = diff.originalDiffLines.contains(index);
-                    final isCurrent = currentDiffIndex != null && 
-                      diff.originalDiffLines.indexOf(index) == currentDiffIndex;
+                    final isCurrent = currentDiffIndex != null &&
+                        currentDiffIndex! >= 0 &&
+                        currentDiffIndex! < diff.originalDiffLines.length &&
+                        diff.originalDiffLines[currentDiffIndex!] == index;
 
                     return Container(
-                      color: isCurrent
-                        ? Colors.blue.withOpacity(0.2)
-                        : (isDiff
-                            ? Colors.red.withOpacity(0.1)
-                            : Colors.transparent),
+                      decoration: BoxDecoration(
+                        border: isCurrent
+                            ? Border.all(
+                                color: Colors.blue,
+                                width:
+                                    2) // Жирная синяя граница для текущего изменения
+                            : null,
+                        color: isCurrent
+                            ? Colors.blue.withOpacity(
+                                0.2) // Полупрозрачный синий фон для текущего изменения
+                            : (isDiff
+                                ? Colors.red.withOpacity(
+                                    0.1) // Лёгкий красный фон для изменения
+                                : Colors.transparent),
+                      ),
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       height: 20,
                       child: Row(
@@ -101,15 +113,27 @@ class DiffPane extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final line = diff.modifiedLines[index];
                     final isDiff = diff.modifiedDiffLines.contains(index);
-                    final isCurrent = currentDiffIndex != null && 
-                      diff.modifiedDiffLines.indexOf(index) == currentDiffIndex;
+                    final isCurrent = currentDiffIndex != null &&
+                        currentDiffIndex! >= 0 &&
+                        currentDiffIndex! < diff.modifiedDiffLines.length &&
+                        diff.modifiedDiffLines[currentDiffIndex!] == index;
 
                     return Container(
-                      color: isCurrent
-                        ? Colors.blue.withOpacity(0.2)
-                        : (isDiff
-                            ? Colors.green.withOpacity(0.1)
-                            : Colors.transparent),
+                      decoration: BoxDecoration(
+                        border: isCurrent
+                            ? Border.all(
+                                color: Colors.blue,
+                                width:
+                                    2) // Жирная синяя граница для текущего изменения
+                            : null,
+                        color: isCurrent
+                            ? Colors.blue.withOpacity(
+                                0.2) // Полупрозрачный синий фон для текущего изменения
+                            : (isDiff
+                                ? Colors.green.withOpacity(
+                                    0.1) // Лёгкий зелёный фон для изменения
+                                : Colors.transparent),
+                      ),
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       height: 20,
                       child: Row(

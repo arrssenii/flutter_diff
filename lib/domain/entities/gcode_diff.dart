@@ -10,6 +10,7 @@ class GCodeDiff extends Equatable {
   final List<int> originalDiffLines;
   final List<int> modifiedDiffLines;
   final List<int> diffIndices;
+  final int? changeCount;
 
   const GCodeDiff({
     required this.reference,
@@ -21,6 +22,7 @@ class GCodeDiff extends Equatable {
     this.originalDiffLines = const [],
     this.modifiedDiffLines = const [],
     required this.diffIndices,
+    this.changeCount,
   });
 
   @override

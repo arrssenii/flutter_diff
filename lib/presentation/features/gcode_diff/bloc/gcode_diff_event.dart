@@ -9,21 +9,6 @@ abstract class GCodeDiffEvent extends Equatable {
   List<Object> get props => [];
 }
 
-class LoadGCodeDiff extends GCodeDiffEvent {
-  final String reference;
-  final String modified;
-  final String controllerId;
-
-  const LoadGCodeDiff({
-    required this.reference,
-    required this.modified,
-    required this.controllerId,
-  });
-
-  @override
-  List<Object> get props => [reference, modified, controllerId];
-}
-
 class LoadLastChanges extends GCodeDiffEvent {
   final String bsid;
 
@@ -34,7 +19,7 @@ class LoadLastChanges extends GCodeDiffEvent {
 }
 
 class NavigateToDiffByDirection extends GCodeDiffEvent {
-  final int direction; // 1 for next, -1 for previous
+  final int direction;
 
   const NavigateToDiffByDirection(this.direction);
 

@@ -27,6 +27,65 @@ class GCodeDiffBloc extends Bloc<GCodeDiffEvent, GCodeDiffState> {
     on<ErrorOccurred>((event, emit) => emit(GCodeDiffError(event.message)));
   }
 
+  GCodeDiff _buildGCodeDiffFromStrings(String oldText, String newText) {
+    final oldLines = oldText.split('\n');
+    final newLines = newText.split('\n');
+
+    final originalDiffLines = <int>[];
+    final modifiedDiffLines = <int>[];
+    final diffIndices = <int>[];
+    final changes = <DiffLine>[]; // Список для объектов DiffLine
+
+    int changeCounter = 0;
+    final maxLen =
+        oldLines.length > newLines.length ? oldLines.length : newLines.length;
+
+    for (int i = 0; i < maxLen; i++) {
+      final oldLine = i < oldLines.length ? oldLines[i] : null;
+      final newLine = i < newLines.length ? newLines[i] : null;
+
+      if (oldLine != newLine) {
+        originalDiffLines.add(i < oldLines.length ? i : -1);
+        modifiedDiffLines.add(i < newLines.length ? i : -1);
+        diffIndices.add(changeCounter);
+
+        // Добавляем DiffLine объект в список changes
+        if (oldLine != null) {
+          changes.add(DiffLine(
+            lineNumber: i + 1, // Номер строки
+            referenceLine: oldLine, // Строка из старого кода
+            modifiedLine: '', // Пустая строка для измененной
+            type: DiffType.removed, // Тип изменения: удалено
+          ));
+        }
+        if (newLine != null) {
+          changes.add(DiffLine(
+            lineNumber: i + 1, // Номер строки
+            referenceLine: '', // Пустая строка для старого кода
+            modifiedLine: newLine, // Строка из нового кода
+            type: DiffType.added, // Тип изменения: добавлено
+          ));
+        }
+        changeCounter++;
+      }
+    }
+
+    return GCodeDiff(
+      originalLines: oldLines,
+      modifiedLines: newLines,
+      originalDiffLines: originalDiffLines.where((i) => i >= 0).toList(),
+      modifiedDiffLines: modifiedDiffLines.where((i) => i >= 0).toList(),
+      diffIndices: diffIndices,
+      differences: changes, // Передаем список DiffLine
+      reference: oldText, // Передаем reference
+      modified: newText, // Передаем modified
+      changes: changes
+          .map((change) =>
+              '${change.lineNumber}: ${change.referenceLine} => ${change.modifiedLine}')
+          .toList(), // Преобразуем в List<String>
+    );
+  }
+
   Future<void> _onLoadLastChanges(
     LoadLastChanges event,
     Emitter<GCodeDiffState> emit,
@@ -34,39 +93,39 @@ class GCodeDiffBloc extends Bloc<GCodeDiffEvent, GCodeDiffState> {
     try {
       emit(GCodeDiffLoading());
       final changes = await gcodeRepository.getLastChanges(event.bsid);
-      
+
       if (kDebugMode) {
         debugPrint('API Response keys: ${changes.keys}');
-        debugPrint('Old content length: ${changes['old']?.length ?? 0}');
-        debugPrint('New content length: ${changes['new']?.length ?? 0}');
-        debugPrint('Diff content length: ${changes['differences']?.length ?? 0}');
-      }
-      
-      // Validate API response structure
-      if (changes['old'] == null ||
-          changes['new'] == null ||
-          changes['differences'] == null) {
-        throw FormatException('Invalid API response format');
       }
 
-      final diffData = {
-        'old': changes['old'] as String,
-        'new': changes['new'] as String,
-        'differences': changes['differences'] as String,
-        'hasChanges': changes['hasChanges'] as bool,
-      };
-
-      if (kDebugMode) {
-        debugPrint('Diff hasChanges: ${diffData['hasChanges']}');
-        debugPrint('Diff length: ${(diffData['differences'] as String).length}');
+      if (changes['old'] == null || changes['new'] == null) {
+        emit(GCodeApiDiffLoaded(
+          apiData: {
+            'old': changes['old'] ?? '',
+            'new': changes['new'] ?? '',
+            'differences': changes['differences'] ?? '',
+            'hasChanges': changes['hasChanges'] ?? false,
+          },
+          controllerId: event.bsid.toString(),
+        ));
+        return;
       }
 
-      emit(GCodeApiDiffLoaded(
-        apiData: diffData,
+      final oldText = changes['old'] as String;
+      final newText = changes['new'] as String;
+      final differences = changes['differences'] as String;
+
+      final gcodeDiff = _buildGCodeDiffFromStrings(oldText, newText);
+
+      emit(GCodeDiffLoaded(
+        diff: gcodeDiff,
         controllerId: event.bsid.toString(),
+        currentChangeIndex: 0,
+        reference: oldText, // Передача reference
+        modified: newText, // Передача modified
+        differences: differences, // Передача differences
       ));
     } on FormatException catch (e) {
-      emit(GCodeDiffError('Некорректный формат данных: ${e.message}'));
       emit(GCodeDiffError('Некорректный формат данных: ${e.message}'));
     } catch (e) {
       emit(GCodeDiffError(e.toString()));
@@ -79,11 +138,10 @@ class GCodeDiffBloc extends Bloc<GCodeDiffEvent, GCodeDiffState> {
   ) async {
     if (state is GCodeDiffLoaded) {
       final currentState = state as GCodeDiffLoaded;
-      emit(GCodeDiffLoaded(
-        diff: event.diff,
-        controllerId: event.controllerId,
-        currentChangeIndex: event.diffIndex,
-      ));
+      if (event.diffIndex >= 0 &&
+          event.diffIndex < event.diff.diffIndices.length) {
+        emit(currentState.copyWith(currentChangeIndex: event.diffIndex));
+      }
     }
   }
 
@@ -93,17 +151,14 @@ class GCodeDiffBloc extends Bloc<GCodeDiffEvent, GCodeDiffState> {
   ) async {
     if (state is GCodeDiffLoaded) {
       final currentState = state as GCodeDiffLoaded;
-      final newIndex = currentState.currentChangeIndex + event.direction;
-      
-      final diffIndices = currentState.diff.diffIndices;
-      if (diffIndices.isEmpty) return;
-      
-      debugPrint('Navigating from ${currentState.currentChangeIndex} to $newIndex');
-      if (newIndex >= 0 && newIndex < diffIndices.length) {
-        debugPrint('Valid navigation to difference $newIndex of ${diffIndices.length}');
-        emit(currentState.copyWith(
-          currentChangeIndex: newIndex
-        ));
+      final currentIndex = currentState.currentChangeIndex;
+      final total = currentState.diff.diffIndices.length;
+
+      final newIndex = (currentIndex + event.direction).clamp(0, total - 1);
+
+      if (newIndex != currentIndex) {
+        emit(currentState.copyWith(currentChangeIndex: newIndex));
+        if (kDebugMode) debugPrint('Navigated to diff index $newIndex');
       }
     }
   }

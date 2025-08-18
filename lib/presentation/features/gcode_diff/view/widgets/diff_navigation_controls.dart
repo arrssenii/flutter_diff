@@ -25,8 +25,11 @@ class DiffNavigationControls extends StatelessWidget {
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
               if (currentIndex > 0) {
-                context.read<GCodeDiffBloc>().add(NavigateToDiffByDirection(-1));
-                debugPrint('Navigating to previous diff at index ${currentIndex - 1}');
+                context
+                    .read<GCodeDiffBloc>()
+                    .add(NavigateToDiffByDirection(-1));
+                debugPrint(
+                    'Navigating to previous diff at index ${currentIndex - 1}');
               }
             },
             tooltip: 'Предыдущее отличие',
@@ -42,7 +45,8 @@ class DiffNavigationControls extends StatelessWidget {
             onPressed: () {
               if (currentIndex < totalChanges - 1) {
                 context.read<GCodeDiffBloc>().add(NavigateToDiffByDirection(1));
-                debugPrint('Navigating to next diff at index ${currentIndex + 1}');
+                debugPrint(
+                    'Navigating to next diff at index ${currentIndex + 1}');
               }
             },
             tooltip: 'Следующее отличие',
