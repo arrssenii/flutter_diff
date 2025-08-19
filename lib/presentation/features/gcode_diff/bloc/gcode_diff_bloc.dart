@@ -27,14 +27,22 @@ class GCodeDiffBloc extends Bloc<GCodeDiffEvent, GCodeDiffState> {
     on<ErrorOccurred>((event, emit) => emit(GCodeDiffError(event.message)));
   }
 
+  /// Строит полноценный GCodeDiff из сырых текстов old/new.
+  /// Заполняет:
+  /// - originalLines, modifiedLines
+  /// - originalDiffLines, modifiedDiffLines (индексы строк, где есть отличия)
+  /// - differences (List<DiffLine>) — объекты с info по изменению
+  /// - changes (List<String>) — человекочитаемые описания изменений
+  /// - diffIndices (List<int>) — список индексов изменений [0..n-1]
+  /// - changeCount
   GCodeDiff _buildGCodeDiffFromStrings(String oldText, String newText) {
     final oldLines = oldText.split('\n');
     final newLines = newText.split('\n');
 
     final originalDiffLines = <int>[];
     final modifiedDiffLines = <int>[];
-    final diffIndices = <int>[];
-    final changes = <DiffLine>[]; // Список для объектов DiffLine
+    final differences = <DiffLine>[];
+    final changes = <String>[];
 
     int changeCounter = 0;
     final maxLen =
@@ -44,45 +52,60 @@ class GCodeDiffBloc extends Bloc<GCodeDiffEvent, GCodeDiffState> {
       final oldLine = i < oldLines.length ? oldLines[i] : null;
       final newLine = i < newLines.length ? newLines[i] : null;
 
-      if (oldLine != newLine) {
-        originalDiffLines.add(i < oldLines.length ? i : -1);
-        modifiedDiffLines.add(i < newLines.length ? i : -1);
-        diffIndices.add(changeCounter);
-
-        // Добавляем DiffLine объект в список changes
-        if (oldLine != null) {
-          changes.add(DiffLine(
-            lineNumber: i + 1, // Номер строки
-            referenceLine: oldLine, // Строка из старого кода
-            modifiedLine: '', // Пустая строка для измененной
-            type: DiffType.removed, // Тип изменения: удалено
-          ));
-        }
-        if (newLine != null) {
-          changes.add(DiffLine(
-            lineNumber: i + 1, // Номер строки
-            referenceLine: '', // Пустая строка для старого кода
-            modifiedLine: newLine, // Строка из нового кода
-            type: DiffType.added, // Тип изменения: добавлено
-          ));
-        }
-        changeCounter++;
+      if (oldLine == newLine) {
+        // если строки идентичны — можно (опционально) не добавлять DiffLine,
+        // но для полноты можем добавить unchanged-элементы или пропустить.
+        continue;
       }
+
+      // Если есть oldLine — считаем удалением/изменением
+      if (oldLine != null) {
+        originalDiffLines.add(i);
+      }
+
+      // Если есть newLine — считаем добавлением/изменением
+      if (newLine != null) {
+        modifiedDiffLines.add(i);
+      }
+
+      // Определяем тип изменения
+      final DiffType type;
+      if (oldLine == null && newLine != null) {
+        type = DiffType.added;
+      } else if (oldLine != null && newLine == null) {
+        type = DiffType.removed;
+      } else {
+        type = DiffType.modified;
+      }
+
+      // Создаём единый DiffLine, содержащий и reference и modified (пустые строки там, где отсутствует)
+      differences.add(DiffLine(
+        lineNumber: i + 1,
+        referenceLine: oldLine ?? '',
+        modifiedLine: newLine ?? '',
+        type: type,
+      ));
+
+      // Создаём человекочитаемое описание изменения
+      changes.add(
+          'Line ${i + 1}: ${oldLine ?? '<empty>'} -> ${newLine ?? '<empty>'}');
+
+      changeCounter++;
     }
 
+    final diffIndices = List<int>.generate(changeCounter, (index) => index);
+
     return GCodeDiff(
+      reference: oldText,
+      modified: newText,
+      differences: differences,
+      changes: changes,
       originalLines: oldLines,
       modifiedLines: newLines,
-      originalDiffLines: originalDiffLines.where((i) => i >= 0).toList(),
-      modifiedDiffLines: modifiedDiffLines.where((i) => i >= 0).toList(),
+      originalDiffLines: originalDiffLines,
+      modifiedDiffLines: modifiedDiffLines,
       diffIndices: diffIndices,
-      differences: changes, // Передаем список DiffLine
-      reference: oldText, // Передаем reference
-      modified: newText, // Передаем modified
-      changes: changes
-          .map((change) =>
-              '${change.lineNumber}: ${change.referenceLine} => ${change.modifiedLine}')
-          .toList(), // Преобразуем в List<String>
+      changeCount: changeCounter,
     );
   }
 
@@ -96,38 +119,59 @@ class GCodeDiffBloc extends Bloc<GCodeDiffEvent, GCodeDiffState> {
 
       if (kDebugMode) {
         debugPrint('API Response keys: ${changes.keys}');
+        debugPrint('Old content length: ${changes['old']?.length ?? 0}');
+        debugPrint('New content length: ${changes['new']?.length ?? 0}');
+        debugPrint(
+            'Diff content length: ${changes['differences']?.length ?? 0}');
       }
 
+      // Проверяем наличие ключей
       if (changes['old'] == null || changes['new'] == null) {
-        emit(GCodeApiDiffLoaded(
-          apiData: {
-            'old': changes['old'] ?? '',
-            'new': changes['new'] ?? '',
-            'differences': changes['differences'] ?? '',
-            'hasChanges': changes['hasChanges'] ?? false,
-          },
-          controllerId: event.bsid.toString(),
-        ));
-        return;
+        // Если нет старого/нового, но есть differences (API-режим) — отдадим Api-state
+        if (changes['differences'] != null) {
+          final diffData = {
+            'old': changes['old'] as String? ?? '',
+            'new': changes['new'] as String? ?? '',
+            'differences': changes['differences'] as String,
+            'hasChanges': changes['hasChanges'] as bool? ?? false,
+          };
+          emit(GCodeApiDiffLoaded(
+            apiData: diffData,
+            controllerId: event.bsid.toString(),
+          ));
+          return;
+        } else {
+          throw FormatException(
+              'Invalid API response format: missing old/new/differences');
+        }
       }
 
       final oldText = changes['old'] as String;
       final newText = changes['new'] as String;
-      final differences = changes['differences'] as String;
 
+      // Строим GCodeDiff локально на основе old/new
       final gcodeDiff = _buildGCodeDiffFromStrings(oldText, newText);
 
+      if (kDebugMode) {
+        debugPrint(
+            'Built GCodeDiff: changes=${gcodeDiff.changeCount}, diffIndices=${gcodeDiff.diffIndices.length}');
+      }
+
+      // Эмитим состояние с полным diff
       emit(GCodeDiffLoaded(
         diff: gcodeDiff,
         controllerId: event.bsid.toString(),
         currentChangeIndex: 0,
-        reference: oldText, // Передача reference
-        modified: newText, // Передача modified
-        differences: differences, // Передача differences
+        reference: gcodeDiff.reference,
+        modified: gcodeDiff.modified,
+        differences: gcodeDiff.changes.join('\n'),
       ));
     } on FormatException catch (e) {
       emit(GCodeDiffError('Некорректный формат данных: ${e.message}'));
-    } catch (e) {
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('Error in _onLoadLastChanges: $e\n$st');
+      }
       emit(GCodeDiffError(e.toString()));
     }
   }

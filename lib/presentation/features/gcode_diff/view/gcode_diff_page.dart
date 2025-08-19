@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:test_gcode/domain/usecases/get_gcode_versions_usecase.dart';
-import 'package:test_gcode/domain/usecases/save_reference_usecase.dart';
-import 'package:test_gcode/presentation/features/gcode_diff/bloc/gcode_diff_bloc.dart';
-import 'package:test_gcode/presentation/features/gcode_diff/bloc/gcode_diff_event.dart';
-import 'package:test_gcode/presentation/features/gcode_diff/bloc/gcode_diff_state.dart';
+import '../bloc/gcode_diff_bloc.dart';
+import '../bloc/gcode_diff_event.dart';
+import '../bloc/gcode_diff_state.dart';
 import 'widgets/diff_pane.dart';
-import 'widgets/api_diff_pane.dart';
 import 'widgets/diff_navigation_controls.dart';
+import 'widgets/api_diff_pane.dart';
 
 class GCodeDiffPage extends StatefulWidget {
   final String controllerId;
@@ -25,15 +23,14 @@ class _GCodeDiffPageState extends State<GCodeDiffPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    
-    // Load data only from API
     try {
-      // Extract numeric ID from controllerId
-      final numericId = 65;
+      final numericId = int.tryParse(widget.controllerId) ?? 65;
       context.read<GCodeDiffBloc>().add(LoadLastChanges(numericId.toString()));
     } catch (e) {
       debugPrint('Error loading data: $e');
-      context.read<GCodeDiffBloc>().add(ErrorOccurred('Ошибка загрузки данных'));
+      context
+          .read<GCodeDiffBloc>()
+          .add(ErrorOccurred('Ошибка загрузки данных'));
     }
   }
 
@@ -42,6 +39,7 @@ class _GCodeDiffPageState extends State<GCodeDiffPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Сравнение G-code для ${widget.controllerId}'),
+        // убрал кнопки навигации из AppBar
       ),
       body: BlocBuilder<GCodeDiffBloc, GCodeDiffState>(
         builder: (context, state) {
@@ -54,29 +52,59 @@ class _GCodeDiffPageState extends State<GCodeDiffPage> {
           }
 
           if (state is GCodeDiffLoaded) {
+            // Навигационные кнопки — теперь в правом верхнем углу рабочей области
             return Column(
               children: [
-                DiffNavigationControls(
-                  currentIndex: state.currentChangeIndex,
-                  totalChanges: state.diff.changes.length,
+                // Верхняя панель с кнопками навигации (выравнена вправо)
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    children: [
+                      const Spacer(),
+                      // Обернём кнопки в небольшую карточку, чтобы выглядело аккуратно
+                      Card(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                        elevation: 2,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 4),
+                          child: DiffNavigationControls(
+                            currentIndex: state.currentChangeIndex,
+                            totalChanges: state.diff.diffIndices.length,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+
+                // Основная рабочая область с панелями
                 Expanded(
                   child: DiffPane(
                     diff: state.diff,
                     currentDiffIndex: state.currentChangeIndex,
                   ),
                 ),
+
+                // Небольшой футер с кнопкой "Принять"
                 Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: ElevatedButton(
-                    onPressed: () => _confirmAcceptChanges(context),
-                    child: const Text('Принять изменения'),
+                  padding: const EdgeInsets.all(12.0),
+                  child: Row(
+                    children: [
+                      ElevatedButton(
+                        onPressed: () => _confirmAcceptChanges(context),
+                        child: const Text('Принять изменения'),
+                      ),
+                      const Spacer(),
+                    ],
                   ),
                 ),
               ],
             );
           }
-          
+
           if (state is GCodeApiDiffLoaded) {
             try {
               return Column(
@@ -91,7 +119,6 @@ class _GCodeDiffPageState extends State<GCodeDiffPage> {
                 ],
               );
             } catch (e) {
-              // Fallback to local files if API data is invalid
               return Center(child: Text('Ошибка обработки данных API'));
             }
           }
@@ -115,7 +142,9 @@ class _GCodeDiffPageState extends State<GCodeDiffPage> {
           ),
           TextButton(
             onPressed: () {
-              context.read<GCodeDiffBloc>().add(AcceptChanges(widget.controllerId));
+              context
+                  .read<GCodeDiffBloc>()
+                  .add(AcceptChanges(widget.controllerId));
               Navigator.pop(ctx);
             },
             child: const Text('Принять'),

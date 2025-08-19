@@ -26,11 +26,16 @@ class _ApiDiffPaneState extends State<ApiDiffPane> {
   final ScrollController _modifiedScrollController = ScrollController();
   final ScrollController _diffScrollController = ScrollController();
 
+  static const double lineHeight = 20.0;
+  bool _isSyncing = false;
+
   @override
   void initState() {
     super.initState();
-    _originalScrollController.addListener(() => _syncScroll(_originalScrollController));
-    _modifiedScrollController.addListener(() => _syncScroll(_modifiedScrollController));
+    _originalScrollController
+        .addListener(() => _syncScroll(_originalScrollController));
+    _modifiedScrollController
+        .addListener(() => _syncScroll(_modifiedScrollController));
   }
 
   @override
@@ -42,38 +47,39 @@ class _ApiDiffPaneState extends State<ApiDiffPane> {
   }
 
   void _syncScroll(ScrollController source) {
+    if (_isSyncing) return;
     if (!source.hasClients) return;
 
-    // Рассчитываем номер текущей строки
-    final lineHeight = 20.0;
     final currentLine = (source.offset / lineHeight).round();
 
-    // Синхронизация между оригиналом и изменениями
-    if (source == _originalScrollController || source == _modifiedScrollController) {
-      final targetController = source == _originalScrollController
-          ? _modifiedScrollController
-          : _originalScrollController;
-
-      if (targetController.hasClients) {
-        final targetOffset = currentLine * lineHeight;
-        if ((targetController.offset - targetOffset).abs() > 1) {
-          targetController.jumpTo(targetOffset.clamp(0, targetController.position.maxScrollExtent));
-        }
+    // Синхронизируем другую панель
+    final targetController = source == _originalScrollController
+        ? _modifiedScrollController
+        : _originalScrollController;
+    if (targetController.hasClients) {
+      final targetOffset = (currentLine * lineHeight)
+          .clamp(0.0, targetController.position.maxScrollExtent);
+      if ((targetController.offset - targetOffset).abs() > 1.0) {
+        _isSyncing = true;
+        targetController.jumpTo(targetOffset);
+        _isSyncing = false;
       }
     }
 
-    // Синхронизация с панелью различий
+    // Синхронизируем панель различий
     if (_diffScrollController.hasClients) {
-      final diffOffset = currentLine * lineHeight;
-      if ((_diffScrollController.offset - diffOffset).abs() > 1) {
-        _diffScrollController.jumpTo(diffOffset.clamp(0, _diffScrollController.position.maxScrollExtent));
+      final diffOffset = (currentLine * lineHeight)
+          .clamp(0.0, _diffScrollController.position.maxScrollExtent);
+      if ((_diffScrollController.offset - diffOffset).abs() > 1.0) {
+        _isSyncing = true;
+        _diffScrollController.jumpTo(diffOffset);
+        _isSyncing = false;
       }
     }
   }
+
   late final List<String> oldLines = widget.oldCode.split('\n');
   late final List<String> newLines = widget.newCode.split('\n');
-  final _oldLineCache = <int, TextSpan>{};
-  final _newLineCache = <int, TextSpan>{};
 
   @override
   Widget build(BuildContext context) {
@@ -82,12 +88,15 @@ class _ApiDiffPaneState extends State<ApiDiffPane> {
         Expanded(
           child: Column(
             children: [
-              Text('Original Code', style: Theme.of(context).textTheme.titleMedium),
+              Text('Original Code',
+                  style: Theme.of(context).textTheme.titleMedium),
               Expanded(
                 child: ListView.builder(
                   controller: _originalScrollController,
                   itemCount: oldLines.length,
-                  itemBuilder: (context, index) => _buildCodeLine(oldLines[index], index, true),
+                  itemExtent: lineHeight,
+                  itemBuilder: (context, index) =>
+                      _buildCodeLine(oldLines[index], index, true),
                   cacheExtent: 1000,
                   addAutomaticKeepAlives: true,
                 ),
@@ -99,12 +108,15 @@ class _ApiDiffPaneState extends State<ApiDiffPane> {
         Expanded(
           child: Column(
             children: [
-              Text('Modified Code', style: Theme.of(context).textTheme.titleMedium),
+              Text('Modified Code',
+                  style: Theme.of(context).textTheme.titleMedium),
               Expanded(
                 child: ListView.builder(
                   controller: _modifiedScrollController,
                   itemCount: newLines.length,
-                  itemBuilder: (context, index) => _buildCodeLine(newLines[index], index, false),
+                  itemExtent: lineHeight,
+                  itemBuilder: (context, index) =>
+                      _buildCodeLine(newLines[index], index, false),
                   cacheExtent: 1000,
                   addAutomaticKeepAlives: true,
                 ),
@@ -116,7 +128,8 @@ class _ApiDiffPaneState extends State<ApiDiffPane> {
         Expanded(
           child: Column(
             children: [
-              Text('Differences', style: Theme.of(context).textTheme.titleMedium),
+              Text('Differences',
+                  style: Theme.of(context).textTheme.titleMedium),
               Expanded(
                 child: DiffViewer(
                   diffLines: AnsiDiffParser.parseDiff(widget.differences),
@@ -130,18 +143,7 @@ class _ApiDiffPaneState extends State<ApiDiffPane> {
     );
   }
 
-  static const double lineHeight = 20.0;
-  
   Widget _buildCodeLine(String line, int index, bool isOld) {
-    final cache = isOld ? _oldLineCache : _newLineCache;
-    
-    if (!cache.containsKey(index)) {
-      cache[index] = TextSpan(
-        children: GCodeHighlighter.highlight(line),
-        style: TextStyle(fontFamily: 'monospace'),
-      );
-    }
-    
     return Container(
       height: lineHeight,
       child: Row(
@@ -151,17 +153,19 @@ class _ApiDiffPaneState extends State<ApiDiffPane> {
             width: 40,
             child: Text(
               '${index + 1}',
-              style: TextStyle(
+              style: const TextStyle(
                 color: Colors.grey,
-                fontFamily: 'monospace',
                 height: 1.0,
               ),
             ),
           ),
           Expanded(
             child: SelectableText.rich(
-              cache[index]!,
-              style: TextStyle(height: 1.0),
+              TextSpan(
+                children: GCodeHighlighter.highlight(line),
+                style: TextStyle(fontFamily: 'monospace'),
+              ),
+              style: const TextStyle(height: 1.0),
             ),
           ),
         ],
